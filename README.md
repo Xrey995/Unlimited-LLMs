@@ -386,6 +386,10 @@ streamCompletion();
 
 **Полный список провайдеров:** Используйте эндпойнт `GET /v1/providers` для получения актуального списка.
 
+Пример для просмотра актуального списка в PowerShell:
+```powershell
+Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/models/list" -Method Get | Select-Object -ExpandProperty text
+```
 ### Автоматический Fallback
 
 API автоматически переключается на резервные модели в случае ошибок:
