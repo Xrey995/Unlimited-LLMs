@@ -1,54 +1,42 @@
-# Unlimited-LLMs
-RVFreeLLM API Endpoints - Полное руководство по использованию.
-Данные эндпойнты предоставляют безлимитный доступ к AI-моделям (text, image, audio, video).
-Список актуальных провайдеров и их моделей обновляется каждые сутки в 02:00 по МСК. (проверяйте актуальность).
+# Unlimited-LLMs (RVFreeLLM API)
 
-Нет ограничений на количество запросов и количество токенов (полный безлимит). 
-Единственное ограничение - не более 30 запросов в минуту.
-
-**Версия API:** 1.0  
-**Дата обновления:** 17 ноября 2025  
-**Base URL:** `https://rvlautoai.ru/webhook`
+OpenAI-compatible API-шлюз с мульти-провайдерной маршрутизацией, автоматическим fallback и единым эндпойнтом `/v1/chat/completions` для текста и изображений.
 
 ---
 
 ## 🔗 Полезные ссылки
 
-- **Base URL:** https://rvlautoai.ru/webhook
-- **Получить Api-Key в Telegram Bot:** @FreeApiLLMbot
-- **Техническая поддержка:** Через Telegram
+- **Base URL:** `https://rvlautoai.ru/webhook`
+- **Telegram бот:** `@FreeApiLLMbot`
+- **GitHub:** `https://github.com/Xrey995/Unlimited-LLMs`
 
 ---
 
 ## 📋 Содержание
 
-1. [Обзор API](#обзор-api)
-2. [Базовая информация](#базовая-информация)
-3. [Аутентификация](#аутентификация)
-4. [Эндпойнт: POST /v1/chat/completions](#эндпойнт-post-v1chatcompletions)
-5. [Эндпойнт: GET /v1/models](#эндпойнт-get-v1models)
-6. [Эндпойнт: GET /v1/models/list](#эндпойнт-get-v1modelslist)
-7. [Эндпойнт: GET /v1/providers](#эндпойнт-get-v1providers)
-8. [Примеры использования в коде](#примеры-использования-в-коде)
-9. [Обработка ошибок](#обработка-ошибок)
-10. [Лучшие практики](#лучшие-практики)
-11. [Rate Limiting](#rate-limiting)
-12. [Fallback механизм](#fallback-механизм)
+1. [🎯 Обзор API](#-обзор-api)
+2. [📡 Базовая информация](#-базовая-информация)
+3. [🔐 Аутентификация](#-аутентификация)
+4. [📌 POST /v1/chat/completions](#-эндпойнт-post-v1chatcompletions)
+5. [🖼️ Генерация изображений: Формат Markdown](#️-генерация-изображений-формат-markdown)
+6. [📌 GET /v1/models](#-эндпойнт-get-v1models)
+7. [📌 GET /v1/models/list](#-эндпойнт-get-v1modelslist)
+8. [📌 GET /v1/providers](#-эндпойнт-get-v1providers)
+9. [⏱ Rate limiting](#-rate-limiting)
+10. [🧯 Fallback / Retry](#-fallback--retry)
+11. [🧪 Быстрые примеры](#-быстрые-примеры)
+12. [🧾 Changelog](#-changelog)
 
 ---
 
 ## 🎯 Обзор API
 
-RVFreeLLM API предоставляет доступ к множеству AI моделей через унифицированный OpenAI-совместимый интерфейс. API поддерживает текстовые, изображения, аудио и видео модели от различных провайдеров (Capi, HuggingSpace, Gemini, OpenAIFM и других).
-
-### Основные возможности:
-
-- **Генерация текстовых ответов** (chat completions) с поддержкой streaming
-- **Генерация изображений, аудио и видео контента**
-- **Автоматический fallback между моделями и провайдерами**
-- **Rate limiting** для защиты от злоупотреблений
-- **Получение списка доступных моделей и провайдеров**
-- **OpenAI API совместимость** для легкой интеграции
+**Основные возможности:**
+- OpenAI-compatible формат запросов/ответов (chat completions)
+- Несколько провайдеров (text/image/audio/video), единый формат
+- Автоматический fallback (в т.ч. cross-provider) при ошибках 5xx/пустом ответе
+- Логи usage-статистики на стороне сервиса
+- **ВАЖНО:** Генерация изображений возвращает Markdown со ссылками на `pollinations.ai`
 
 ---
 
@@ -62,28 +50,14 @@ https://rvlautoai.ru/webhook
 
 ### Формат данных
 
-Все эндпойнты используют JSON формат:
-
-```http
-Content-Type: application/json
-```
+- Request/Response: `application/json`
+- Все запросы — по HTTPS
 
 ### HTTP заголовки
 
-```http
-Content-Type: application/json
-Access-Control-Allow-Origin: *
-X-API-Version: 1.0
-```
-
-### Типы моделей
-
-| Тип | Описание | Примеры моделей |
-|-----|----------|----------------|
-| `text` | Текстовые модели (чат, генерация текста) | gpt-4o, claude-3, gemini-2.5-flash |
-| `image` | Генерация изображений | dall-e-3, flux, stable-diffusion |
-| `audio` | Аудио модели (TTS, голосовые ассистенты) | tts-1, whisper, alloy, echo |
-| `video` | Видео генерация | sora, cogvideo, runway |
+**Обязательные:**
+- `Authorization: Bearer YOUR_API_KEY` (формат: `rvf_full...`, 75 символов)
+- `Content-Type: application/json`
 
 ---
 
@@ -91,51 +65,39 @@ X-API-Version: 1.0
 
 ### Bearer Token
 
-Все запросы к API (кроме информационных эндпойнтов `/v1/models` и `/v1/providers`) требуют аутентификации с помощью Bearer Token.
+Передавайте ключ в заголовке:
 
-### Формат заголовка
-
-```http
-Authorization: Bearer YOUR_API_KEY
+```
+Authorization: Bearer rvf_full...
 ```
 
 ### Формат API ключа
 
-- **Префикс:** `rvf_`
-- **Длина:** 75 символов
-- **Формат:** `rvf_` + 71 буквенно-цифровой символ
+- **Префикс:** `rvf`
+- **Длина:** 75 символов (включая префикс)
+- **Символы:** латинские буквы a-z, A-Z и цифры 0-9
+- **Пример:** `rvf_full...`
 
-### Пример
+### Типы ключей
 
-```bash
-curl -X POST "https://rvlautoai.ru/webhook/v1/chat/completions" \
-  -H "Authorization: Bearer rvf_test1234567890abcdef..." \
-  -H "Content-Type: application/json" \
-  -d '{"model": "gpt-4o", "provider": "Capi", "messages": [...]}'
-```
-
-### Типы API ключей
-
-| Тип | Лимит запросов | Срок действия | Описание |
-|-----|----------------|---------------|----------|
-| `test` | 30 запросов/час | 1 час | Тестовый ключ для ознакомления |
-| `full` | 30 запросов/минуту | 30 дней | Полноценный доступ |
-| `admin` | Без ограничений | Бессрочно | Административный доступ |
+| Тип | Лимит запросов | Длительность | Описание |
+|-----|---|---|---|
+| `test` | 30 | 1 час | Тестовый доступ, ограниченный |
+| `full` | Unlimited | 30 дней | Полный доступ, стандартный ключ |
+| `admin` | Unlimited | Unlimited | Служебный ключ для администрирования |
 
 ### Ошибки аутентификации
 
-| Код | Описание | Причина |
+| Код | Значение | Причина |
 |-----|----------|---------|
-| `401` | Unauthorized | Неверный или отсутствующий API ключ |
-| `401` | Key Expired | Ключ истек (test после 1 часа, full после 30 дней) |
-| `403` | Key Revoked | Ключ аннулирован (возврат платежа) |
+| `401` | Unauthorized | Неверный/истекший ключ |
+| `401` | Key Expired | Ключ истёк (test через 1ч, full через 30дн) |
+| `403` | Key Revoked | Ключ отозван администратором |
 | `429` | Rate Limit Exceeded | Превышен лимит запросов |
 
 ---
 
 ## 📌 Эндпойнт: POST /v1/chat/completions
-
-Основной эндпойнт для генерации текстовых ответов, изображений, аудио и видео контента.
 
 ### URL
 
@@ -145,51 +107,55 @@ POST https://rvlautoai.ru/webhook/v1/chat/completions
 
 ### Аутентификация
 
-**Обязательна.** Требуется Bearer Token в заголовке `Authorization`.
+Bearer Token в заголовке `Authorization`.
 
 ### Request Body (обязательные параметры)
 
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| `model` | string | **Обязательно.** Название модели (например, `gpt-4o`, `gemini-2.5-flash`) |
-| `provider` | string | **Обязательно.** Название провайдера (`Capi`, `HuggingSpace`, `Gemini`, и т.д.) |
-| `messages` | array | **Обязательно.** Массив сообщений в OpenAI формате |
+| Поле | Тип | Обязательно | Описание |
+|------|-----|:----:|----------|
+| `model` | string | ✅ | ID модели: `gpt-4o`, `flux`, `command-r-plus-08-2024`, и т.д. |
+| `provider` | string | ✅ | Провайдер: `Capi`, `HuggingSpace`, `Gemini`, `PollinationsImage`, `BlackForestLabs_Flux1Dev` и т.д. |
+| `messages` | array | ✅ | Массив сообщений OpenAI-формата |
 
 ### Request Body (опциональные параметры)
 
-| Параметр | Тип | По умолчанию | Описание |
-|----------|-----|--------------|----------|
-| `stream` | boolean | `false` | Включить потоковую передачу ответа |
-| `temperature` | number | `0.7` | Температура генерации (0.0-2.0) |
-| `max_tokens` | integer | `2000` | Максимальное количество токенов в ответе |
-| `top_p` | number | `1.0` | Nucleus sampling (0.0-1.0) |
-| `frequency_penalty` | number | `0` | Штраф за повторения (-2.0 до 2.0) |
-| `presence_penalty` | number | `0` | Штраф за присутствие (-2.0 до 2.0) |
-| `web_search` | boolean | `false` | Включить веб-поиск (поддерживается не всеми моделями) |
+| Поле | Тип | Значение по умолчанию | Диапазон | Примечание |
+|------|-----|:----:|:----:|----------|
+| `stream` | boolean | `false` | - | SSE-стриминг (зависит от провайдера) |
+| `temperature` | number | `0.7` | 0.0–2.0 | Креативность ответа |
+| `max_tokens` | integer | `2000` | 1–8192 | Максимальная длина ответа |
+| `top_p` | number | `1.0` | 0.0–1.0 | Nucleus sampling |
+| `frequency_penalty` | number | `0` | -2.0–2.0 | Штраф за повторения |
+| `presence_penalty` | number | `0` | -2.0–2.0 | Штраф за известные слова |
+| `websearch` | boolean | `false` | - | Веб-поиск (частичная поддержка) |
 
-### Формат массива messages
+### Формат массива `messages`
 
 ```json
-{
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a helpful assistant."
-    },
-    {
-      "role": "user",
-      "content": "Привет, как дела?"
-    }
-  ]
-}
+[
+  {
+    "role": "system",
+    "content": "You are a helpful assistant."
+  },
+  {
+    "role": "user",
+    "content": "Объясни, что такое API."
+  },
+  {
+    "role": "assistant",
+    "content": "API (Application Programming Interface) — это интерфейс..."
+  }
+]
 ```
 
-**Допустимые значения `role`:**
-- `system` — системная инструкция для модели
-- `user` — сообщение от пользователя
-- `assistant` — ответ ассистента (для контекста диалога)
+**Роли:**
+- `system` — системный промпт
+- `user` — сообщение пользователя
+- `assistant` — ответ ассистента
 
 ### Response Format (успешный запрос)
+
+OpenAI-compatible:
 
 ```json
 {
@@ -197,214 +163,333 @@ POST https://rvlautoai.ru/webhook/v1/chat/completions
   "object": "chat.completion",
   "created": 1731654208,
   "model": "gpt-4o",
-  "provider": "Capi",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "Привет! У меня все хорошо, спасибо. Чем могу помочь?"
+        "content": "API (Application Programming Interface) — это интерфейс для взаимодействия приложений..."
       },
       "finish_reason": "stop"
     }
   ],
   "usage": {
     "prompt_tokens": 15,
-    "completion_tokens": 12,
-    "total_tokens": 27
+    "completion_tokens": 120,
+    "total_tokens": 135
   }
 }
 ```
 
-### Примеры запросов
+### Ошибки
 
-#### Пример 1: Простой текстовый запрос (PowerShell)
+OpenAI-compatible error format:
 
-```powershell
-$headers = @{
-    "Authorization" = "Bearer YOUR_API_KEY"
-    "Content-Type" = "application/json"
+```json
+{
+  "error": {
+    "message": "Invalid authentication credentials",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  }
 }
-
-$body = @{
-    model = "gpt-4o"
-    provider = "Capi"
-    messages = @(
-        @{
-            role = "user"
-            content = "Привет, это тест"
-        }
-    )
-    temperature = 0.7
-    max_tokens = 100
-} | ConvertTo-Json -Depth 10
-
-$response = Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/chat/completions" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
-
-Write-Host "Ответ: $($response.choices[0].message.content)"
 ```
 
-#### Пример 2: Запрос с веб-поиском (PowerShell)
+---
 
-```powershell
-$headers = @{
-    "Authorization" = "Bearer YOUR_API_KEY"
-    "Content-Type" = "application/json"
-}
+## 🖼️ Генерация изображений: Формат Markdown
 
-$body = @{
-    model = "command-r-plus-08-2024"
-    provider = "HuggingSpace"
-    messages = @(
-        @{
-            role = "user"
-            content = "Какая погода в Москве сегодня?"
-        }
-    )
-    web_search = $true
-} | ConvertTo-Json -Depth 10
+### ⚠️ КРИТИЧЕСКАЯ ИНФОРМАЦИЯ
 
-$response = Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/chat/completions" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+**Провайдер `PollinationsImage` (и связанные) возвращают результат в виде Markdown-ссылки**, а не чистого URL или base64.
 
-Write-Host "Ответ: $($response.choices[0].message.content)"
+Это выглядит как:
+```
+[![alt_text](https://image.pollinations.ai/prompt/...)](https://image.pollinations.ai/prompt/...)
 ```
 
-#### Пример 3: Диалог с контекстом (Python)
+**Параметр `response_format` игнорируется** для изображений.
 
-```python
-import requests
+Чтобы получить URL изображения, нужно **извлечь его из Markdown** с помощью regex.
 
-url = "https://rvlautoai.ru/webhook/v1/chat/completions"
-headers = {
-    "Authorization": "Bearer YOUR_API_KEY",
-    "Content-Type": "application/json"
-}
+---
 
-body = {
-    "model": "gpt-4o",
-    "provider": "Capi",
-    "messages": [
-        {
-            "role": "system",
-            "content": "Ты полезный ассистент, отвечающий кратко и по делу."
-        },
-        {
-            "role": "user",
-            "content": "Сколько будет 15 + 27?"
-        },
-        {
-            "role": "assistant",
-            "content": "15 + 27 = 42"
-        },
-        {
-            "role": "user",
-            "content": "Умножь этот результат на 3"
-        }
-    ],
-    "temperature": 0.3,
-    "max_tokens": 50
-}
-
-response = requests.post(url, headers=headers, json=body)
-result = response.json()
-
-print("Ответ:", result['choices'][0]['message']['content'])
-# Вывод: "42 × 3 = 126"
-```
-
-#### Пример 4: Генерация изображения (cURL)
+### Пример запроса: Генерация изображения (cURL)
 
 ```bash
 curl -X POST "https://rvlautoai.ru/webhook/v1/chat/completions" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "flux",
-    "provider": "PollinationsImage",
+    "model": "flux-dev",
+    "provider": "BlackForestLabs_Flux1Dev",
     "messages": [
       {
         "role": "user",
-        "content": "A beautiful sunset over mountains, photorealistic"
+        "content": "A dramatic close-up portrait of a young woman, cinematic lighting, golden hour"
       }
-    ],
-    "max_tokens": 100
+    ]
   }'
 ```
 
-#### Пример 5: Streaming ответ (JavaScript)
+### Пример ответа от API
 
-```javascript
-const fetch = require('node-fetch');
-
-const url = 'https://rvlautoai.ru/webhook/v1/chat/completions';
-const headers = {
-  'Authorization': 'Bearer YOUR_API_KEY',
-  'Content-Type': 'application/json'
-};
-
-const body = {
-  model: 'gpt-4o',
-  provider: 'Capi',
-  messages: [
-    { role: 'user', content: 'Напиши короткую историю про робота' }
+```json
+{
+  "id": "chatcmpl-7eOR87ooCarBS6TwDOv9AOzIdk25",
+  "object": "chat.completion",
+  "created": 1766902699,
+  "model": "flux-dev",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "[![A dramatic close-up portrait...](https://image.pollinations.ai/prompt/A%2Bdramatic%2Bclose-up%2Bportrait%2Bof%2Ba%2Byoung%2Bwoman%2C%2Bcinematic%2Blighting%2C%2Bgolden%2Bhour...?width=1024&height=1024&model=flux&seed=4220590749)](https://image.pollinations.ai/prompt/A%2Bdramatic%2Bclose-up%2Bportrait%2Bof%2Ba%2Byoung%2Bwoman%2C%2Bcinematic%2Blighting%2C%2Bgolden%2Bhour...?width=1024&height=1024&model=flux&seed=4220590749)"
+      },
+      "finish_reason": "stop"
+    }
   ],
-  stream: true
-};
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 4,
+    "total_tokens": 4
+  }
+}
+```
 
-async function streamCompletion() {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(body)
-  });
+---
 
-  const reader = response.body;
-  reader.on('data', (chunk) => {
-    const text = chunk.toString();
-    console.log('Chunk:', text);
-  });
+### ✅ РАБОЧИЙ ПРИМЕР: Извлечение URL и скачивание (PowerShell)
+
+```powershell
+# 1. ПОДГОТОВКА: Установите заголовки и тело запроса
+$headers = @{
+    "Authorization" = "Bearer YOUR_API_KEY"
+    "Content-Type"  = "application/json"
 }
 
-streamCompletion();
+$body = @{
+    model       = "flux-dev"
+    provider    = "BlackForestLabs_Flux1Dev"
+    messages    = @(
+        @{
+            role    = "user"
+            content = "A dramatic close-up portrait of a young woman, cinematic lighting, golden hour, shallow depth of field, DSLR, 50 mm lens, soft bokeh background, ultra-realistic, photorealistic"
+        }
+    )
+} | ConvertTo-Json -Depth 10
+
+# 2. ЗАПРОС
+$response = Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/chat/completions" `
+    -Method Post `
+    -Headers $headers `
+    -Body $body
+
+# 3. ИЗВЛЕЧЕНИЕ Markdown-контента
+$markdownContent = $response.choices[0].message.content
+
+Write-Host "=== ПОЛУЧЕННЫЙ Markdown ===" -ForegroundColor Cyan
+Write-Host $markdownContent
+
+# 4. ИЗВЛЕЧЕНИЕ URL с помощью regex
+# Шаблон: \(https://[^\)]+\)
+# Извлекает первый URL в круглых скобках
+if ($markdownContent -match '\(https://[^\)]+\)') {
+    # $matches[0] содержит "(https://...)"
+    # Убираем скобки с помощью -replace
+    $imageUrl = $matches[0] -replace '[()]', ''
+    
+    Write-Host "`n=== ИЗВЛЕЧЁННЫЙ URL ===" -ForegroundColor Green
+    Write-Host $imageUrl
+    
+    # 5. СКАЧИВАНИЕ изображения
+    $outputPath = "$env:USERPROFILE\Downloads\generated_image_$(Get-Date -Format 'yyyyMMdd_HHmmss').jpg"
+    Invoke-WebRequest -Uri $imageUrl -OutFile $outputPath
+    
+    Write-Host "`n=== ИЗОБРАЖЕНИЕ СОХРАНЕНО ===" -ForegroundColor Magenta
+    Write-Host "Путь: $outputPath"
+    
+    # 6. ОТКРЫТЬ изображение в браузере/просмотрщике
+    Start-Process $outputPath
+    Write-Host "`n✅ Готово!" -ForegroundColor Green
+} else {
+    Write-Host "`n❌ ОШИБКА: Не удалось извлечь URL из Markdown-ответа" -ForegroundColor Red
+    Write-Host "Сырой контент: $markdownContent" -ForegroundColor Yellow
+}
 ```
 
-### Поддерживаемые провайдеры
+**Что происходит в этом скрипте:**
+1. Отправляет POST-запрос к API
+2. Получает JSON-ответ
+3. Извлекает `content` из первого `choice`
+4. **Используя regex `\(https://[^\)]+\)`** извлекает URL из Markdown
+5. Скачивает изображение в папку `Downloads`
+6. Открывает его в просмотрщике
 
-| Провайдер | Типы моделей | Особенности |
-|-----------|-------------|-------------|
-| `Capi` | text, image | Быстрые модели GPT-4, Claude, Gemini |
-| `HuggingSpace` | text | Llama, Command-R, Mistral с поддержкой веб-поиска |
-| `Gemini` | text | Google Gemini модели |
-| `OpenAIFM` | audio | TTS голоса (alloy, echo, fable, nova, и т.д.) |
-| `PollinationsImage` | image | DALL-E, Flux, Stable Diffusion |
+---
 
-**Полный список провайдеров:** Используйте эндпойнт `GET /v1/providers` для получения актуального списка.
+### ✅ РАБОЧИЙ ПРИМЕР: Извлечение URL (Python)
 
-Пример для просмотра актуального списка в PowerShell:
-```powershell
-Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/models/list" -Method Get | Select-Object -ExpandProperty text
+```python
+import re
+import requests
+from datetime import datetime
+
+# Подготовка
+BASE_URL = "https://rvlautoai.ru/webhook"
+API_KEY = "YOUR_API_KEY"
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json",
+}
+
+body = {
+    "model": "flux-dev",
+    "provider": "BlackForestLabs_Flux1Dev",
+    "messages": [
+        {
+            "role": "user",
+            "content": "A dramatic close-up portrait of a young woman, cinematic lighting, golden hour, shallow depth of field"
+        }
+    ]
+}
+
+# Запрос
+try:
+    response = requests.post(
+        f"{BASE_URL}/v1/chat/completions",
+        headers=headers,
+        json=body,
+        timeout=180
+    )
+    response.raise_for_status()
+except requests.exceptions.RequestException as e:
+    print(f"❌ Ошибка запроса: {e}")
+    exit(1)
+
+# Извлечение Markdown-контента
+result = response.json()
+markdown_content = result["choices"][0]["message"]["content"]
+
+print("=== ПОЛУЧЕННЫЙ Markdown ===")
+print(markdown_content)
+
+# Извлечение URL
+# Regex: \((https://[^\)]+)\)
+url_match = re.search(r"\((https://[^\)]+)\)", markdown_content)
+
+if not url_match:
+    print("\n❌ ОШИБКА: Не удалось извлечь URL")
+    exit(1)
+
+image_url = url_match.group(1)
+print(f"\n=== ИЗВЛЕЧЁННЫЙ URL ===")
+print(image_url)
+
+# Скачивание изображения
+try:
+    img_response = requests.get(image_url, timeout=180)
+    img_response.raise_for_status()
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = f"generated_image_{timestamp}.jpg"
+    
+    with open(output_path, "wb") as f:
+        f.write(img_response.content)
+    
+    print(f"\n=== ИЗОБРАЖЕНИЕ СОХРАНЕНО ===")
+    print(f"Путь: {output_path}")
+    print(f"\n✅ Готово!")
+    
+except requests.exceptions.RequestException as e:
+    print(f"\n❌ Ошибка скачивания: {e}")
+    exit(1)
 ```
-### Автоматический Fallback
 
-API автоматически переключается на резервные модели в случае ошибок:
+---
 
-1. **Same-Provider Fallback:** Сначала пробуются другие модели того же провайдера
-2. **Cross-Provider Fallback:** Затем переключение на модели других провайдеров
-3. **До 10 попыток:** Максимум 10 попыток перед возвратом ошибки 503
+### ✅ РАБОЧИЙ ПРИМЕР: Извлечение URL (JavaScript/Node.js)
 
-**Пример:** Запрос к `gpt-4o (Capi)` → ошибка → автоматический retry с `gemini-2.5-flash (Capi)` → ошибка → retry с `gpt-4 (HuggingSpace)` → успех.
+```javascript
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+const API_KEY = "YOUR_API_KEY";
+const BASE_URL = "https://rvlautoai.ru/webhook";
+
+async function generateAndDownloadImage() {
+    try {
+        // 1. Запрос к API
+        const response = await axios.post(
+            `${BASE_URL}/v1/chat/completions`,
+            {
+                model: "flux-dev",
+                provider: "BlackForestLabs_Flux1Dev",
+                messages: [
+                    {
+                        role: "user",
+                        content: "A dramatic close-up portrait of a young woman, cinematic lighting, golden hour, shallow depth of field"
+                    }
+                ]
+            },
+            {
+                headers: {
+                    "Authorization": `Bearer ${API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                timeout: 180000
+            }
+        );
+
+        // 2. Извлечение Markdown
+        const markdownContent = response.data.choices[0].message.content;
+        console.log("=== ПОЛУЧЕННЫЙ Markdown ===");
+        console.log(markdownContent);
+
+        // 3. Извлечение URL с помощью regex
+        // Шаблон: \((https://[^\)]+)\)
+        const urlMatch = markdownContent.match(/\((https:\/\/[^\)]+)\)/);
+        
+        if (!urlMatch) {
+            throw new Error("Не удалось извлечь URL из Markdown-ответа");
+        }
+
+        const imageUrl = urlMatch[1];
+        console.log("\n=== ИЗВЛЕЧЁННЫЙ URL ===");
+        console.log(imageUrl);
+
+        // 4. Скачивание изображения
+        const imageResponse = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 180000
+        });
+
+        // 5. Сохранение в файл
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const outputPath = `generated_image_${timestamp}.jpg`;
+        
+        fs.writeFileSync(outputPath, imageResponse.data);
+
+        console.log("\n=== ИЗОБРАЖЕНИЕ СОХРАНЕНО ===");
+        console.log(`Путь: ${path.resolve(outputPath)}`);
+        console.log("\n✅ Готово!");
+
+    } catch (error) {
+        console.error(`\n❌ Ошибка:`, error.message);
+        process.exit(1);
+    }
+}
+
+generateAndDownloadImage();
+```
 
 ---
 
 ## 📌 Эндпойнт: GET /v1/models
-
-Возвращает список всех доступных моделей в формате, совместимом с OpenAI API.
 
 ### URL
 
@@ -414,87 +499,31 @@ GET https://rvlautoai.ru/webhook/v1/models
 
 ### Аутентификация
 
-**Не требуется.**
+Bearer Token в заголовке `Authorization`.
 
 ### Query параметры
 
-| Параметр | Тип | Обязательный | Описание |
-|----------|-----|--------------|----------|
-| `provider` | string | Нет | Фильтрация по провайдеру (например, `Capi`, `OpenAIFM`) |
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `provider` | string | Фильтр по провайдеру (например `Capi`, `HuggingSpace`) |
 
-### Формат ответа
+### Примеры
 
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "gpt-4o-mini",
-      "object": "model",
-      "created": 1731654208,
-      "owned_by": "Capi",
-      "permission": [
-        {
-          "id": "modelperm-gpt-4o-mini-0",
-          "object": "model_permission",
-          "created": 1731654208,
-          "allow_create_engine": false,
-          "allow_sampling": true,
-          "allow_logprobs": true,
-          "allow_search_indices": false,
-          "allow_view": true,
-          "allow_fine_tuning": false,
-          "organization": "*",
-          "group": null,
-          "is_blocking": false
-        }
-      ],
-      "provider": "Capi",
-      "category": "text",
-      "latency_ms": 1500,
-      "quality_score": 8.5,
-      "last_verified": "2025-11-15 08:23:28"
-    }
-  ],
-  "meta": {
-    "total_models": 72,
-    "provider_filter": null,
-    "generated_at": "2025-11-17T10:30:00.000Z",
-    "data_window": "active_only"
-  }
-}
-```
-
-### Примеры запросов
-
-#### Все модели
-
+**Все модели:**
 ```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/models"
+curl -X GET "https://rvlautoai.ru/webhook/v1/models" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
-#### Фильтрация по провайдеру
-
+**Фильтр по провайдеру:**
 ```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/models?provider=Capi"
-```
-
-#### PowerShell
-
-```powershell
-$response = Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/models"
-Write-Host "Всего моделей: $($response.meta.total_models)"
-
-foreach ($model in $response.data) {
-    Write-Host "$($model.id) - $($model.provider) ($($model.category))"
-}
+curl -X GET "https://rvlautoai.ru/webhook/v1/models?provider=Capi" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
 ---
 
 ## 📌 Эндпойнт: GET /v1/models/list
-
-Возвращает человекочитаемый текстовый список моделей, сгруппированных по типу и провайдеру.
 
 ### URL
 
@@ -504,48 +533,38 @@ GET https://rvlautoai.ru/webhook/v1/models/list
 
 ### Аутентификация
 
-**Не требуется.**
+Bearer Token в заголовке `Authorization`.
 
 ### Query параметры
 
-| Параметр | Тип | Обязательный | Описание | Допустимые значения |
-|----------|-----|--------------|----------|---------------------|
-| `provider` | string | Нет | Фильтрация по провайдеру | `Capi`, `OpenAIFM`, `HuggingSpace`, и т.д. |
-| `type` | string | Нет | Фильтрация по типу модели | `text`, `image`, `audio`, `video` |
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `provider` | string | Фильтр по провайдеру (например `Capi`, `HuggingSpace`) |
+| `type` | string | Фильтр по типу: `text`, `image`, `audio`, `video` |
 
-### Формат ответа
+### Примеры
 
-```json
-{
-  "text": "🤖 Доступные модели G4F API:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n💬 ТЕКСТОВЫЕ МОДЕЛИ (50)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n1. 🏢 Capi (18 моделей)\n   • gpt-4o — ⚡ 1.5s\n   • gemini-2.5-flash — ⚡ 1.6s\n..."
-}
+**Все модели:**
+```bash
+curl -X GET "https://rvlautoai.ru/webhook/v1/models/list" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
-### Примеры запросов
-
-#### Все модели
-
+**Только текстовые модели Capi:**
 ```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/models/list"
+curl -X GET "https://rvlautoai.ru/webhook/v1/models/list?type=text&provider=Capi" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
-#### Только текстовые модели
-
+**Только модели для генерации изображений:**
 ```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/models/list?type=text"
-```
-
-#### Только модели провайдера Capi
-
-```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/models/list?provider=Capi"
+curl -X GET "https://rvlautoai.ru/webhook/v1/models/list?type=image" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
 ---
 
 ## 📌 Эндпойнт: GET /v1/providers
-
-Возвращает список всех провайдеров с их статистикой.
 
 ### URL
 
@@ -555,508 +574,102 @@ GET https://rvlautoai.ru/webhook/v1/providers
 
 ### Аутентификация
 
-**Не требуется.**
+Bearer Token в заголовке `Authorization`.
 
 ### Query параметры
 
-| Параметр | Тип | Обязательный | Описание |
-|----------|-----|--------------|----------|
-| `name` | string | Нет | Получить информацию о конкретном провайдере |
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `name` | string | Фильтр по имени провайдера (например `Capi`) |
 
-### Формат ответа
+### Примеры
 
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "Capi",
-      "object": "provider",
-      "created": 1731654208,
-      "name": "Capi",
-      "capabilities": {
-        "text": true,
-        "image": true,
-        "audio": false,
-        "video": false
-      },
-      "models": {
-        "total": 18,
-        "text": 18,
-        "image": 0,
-        "audio": 0,
-        "video": 0
-      },
-      "performance": {
-        "avg_latency_ms": 1552,
-        "avg_quality_score": 8.2
-      },
-      "last_verified": "2025-11-17 08:23:28"
-    }
-  ],
-  "meta": {
-    "total_providers": 10,
-    "provider_filter": null,
-    "generated_at": "2025-11-17T10:30:00.000Z",
-    "data_window": "active_only"
-  }
-}
-```
-
-### Примеры запросов
-
-#### Все провайдеры
-
+**Все провайдеры:**
 ```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/providers"
+curl -X GET "https://rvlautoai.ru/webhook/v1/providers" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
-#### Конкретный провайдер
-
+**Информация о конкретном провайдере:**
 ```bash
-curl -X GET "https://rvlautoai.ru/webhook/v1/providers?name=Capi"
+curl -X GET "https://rvlautoai.ru/webhook/v1/providers?name=Capi" \
+  -H "Authorization: Bearer rvf_admin..."
 ```
 
 ---
 
-## 💻 Примеры использования в коде
+## ⏱ Rate limiting
 
-### Python Client
+### Заголовки ответа
 
-```python
-import requests
-from typing import List, Dict, Any, Optional
+Сервис может возвращать заголовки лимитирования:
 
-class RVFreeLLMClient:
-    def __init__(self, api_key: str, base_url: str = "https://rvlautoai.ru/webhook"):
-        self.api_key = api_key
-        self.base_url = base_url
-        self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        })
-    
-    def chat_completion(
-        self,
-        model: str,
-        provider: str,
-        messages: List[Dict[str, str]],
-        temperature: float = 0.7,
-        max_tokens: int = 2000,
-        stream: bool = False,
-        web_search: bool = False
-    ) -> Dict[str, Any]:
-        """
-        Создать chat completion запрос.
-        
-        Args:
-            model: Название модели (например, 'gpt-4o')
-            provider: Название провайдера (например, 'Capi')
-            messages: Список сообщений в формате [{"role": "user", "content": "..."}]
-            temperature: Температура генерации (0.0-2.0)
-            max_tokens: Максимальное количество токенов
-            stream: Включить потоковую передачу
-            web_search: Включить веб-поиск
-            
-        Returns:
-            Dict с ответом от API
-        """
-        url = f"{self.base_url}/v1/chat/completions"
-        
-        body = {
-            "model": model,
-            "provider": provider,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": stream,
-            "web_search": web_search
-        }
-        
-        try:
-            response = self.session.post(url, json=body, timeout=180)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            error_data = e.response.json() if e.response else {}
-            raise Exception(f"API Error: {error_data.get('error', {}).get('message', str(e))}")
-    
-    def get_models(self, provider: Optional[str] = None) -> Dict[str, Any]:
-        """Получить список моделей."""
-        url = f"{self.base_url}/v1/models"
-        params = {"provider": provider} if provider else {}
-        
-        response = self.session.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    
-    def get_providers(self, name: Optional[str] = None) -> Dict[str, Any]:
-        """Получить список провайдеров."""
-        url = f"{self.base_url}/v1/providers"
-        params = {"name": name} if name else {}
-        
-        response = self.session.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        return response.json()
-
-# Использование
-client = RVFreeLLMClient(api_key="YOUR_API_KEY")
-
-# Простой запрос
-response = client.chat_completion(
-    model="gpt-4o",
-    provider="Capi",
-    messages=[
-        {"role": "user", "content": "Привет, как дела?"}
-    ]
-)
-print(response['choices'][0]['message']['content'])
-
-# Запрос с веб-поиском
-response = client.chat_completion(
-    model="command-r-plus-08-2024",
-    provider="HuggingSpace",
-    messages=[
-        {"role": "user", "content": "Какая погода в Москве?"}
-    ],
-    web_search=True
-)
-print(response['choices'][0]['message']['content'])
 ```
-
-### JavaScript/Node.js Client
-
-```javascript
-const axios = require('axios');
-
-class RVFreeLLMClient {
-  constructor(apiKey, baseURL = 'https://rvlautoai.ru/webhook') {
-    this.apiKey = apiKey;
-    this.baseURL = baseURL;
-    this.client = axios.create({
-      baseURL,
-      timeout: 180000,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-  }
-
-  async chatCompletion({
-    model,
-    provider,
-    messages,
-    temperature = 0.7,
-    maxTokens = 2000,
-    stream = false,
-    webSearch = false
-  }) {
-    try {
-      const response = await this.client.post('/v1/chat/completions', {
-        model,
-        provider,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        stream,
-        web_search: webSearch
-      });
-      return response.data;
-    } catch (error) {
-      const errorMessage = error.response?.data?.error?.message || error.message;
-      throw new Error(`API Error: ${errorMessage}`);
-    }
-  }
-
-  async getModels(provider = null) {
-    const params = provider ? { provider } : {};
-    const response = await this.client.get('/v1/models', { params });
-    return response.data;
-  }
-
-  async getProviders(name = null) {
-    const params = name ? { name } : {};
-    const response = await this.client.get('/v1/providers', { params });
-    return response.data;
-  }
-}
-
-// Использование
-const client = new RVFreeLLMClient('YOUR_API_KEY');
-
-(async () => {
-  // Простой запрос
-  const response = await client.chatCompletion({
-    model: 'gpt-4o',
-    provider: 'Capi',
-    messages: [
-      { role: 'user', content: 'Привет, как дела?' }
-    ]
-  });
-  console.log(response.choices[0].message.content);
-
-  // Запрос с веб-поиском
-  const response2 = await client.chatCompletion({
-    model: 'command-r-plus-08-2024',
-    provider: 'HuggingSpace',
-    messages: [
-      { role: 'user', content: 'Какая погода в Москве?' }
-    ],
-    webSearch: true
-  });
-  console.log(response2.choices[0].message.content);
-})();
-```
-
----
-
-## ⚠️ Обработка ошибок
-
-### Коды HTTP ответов
-
-| Код | Описание | Причина |
-|-----|----------|---------|
-| `200` | OK | Успешный запрос |
-| `400` | Bad Request | Невалидные параметры запроса |
-| `401` | Unauthorized | Неверный или отсутствующий API ключ |
-| `403` | Forbidden | API ключ аннулирован |
-| `404` | Not Found | Модель или провайдер не найдены |
-| `429` | Too Many Requests | Превышен rate limit |
-| `500` | Internal Server Error | Внутренняя ошибка сервера |
-| `503` | Service Unavailable | Все модели недоступны (exhausted fallback) |
-
-### Формат ошибки
-
-```json
-{
-  "error": {
-    "message": "Invalid API key",
-    "type": "invalid_request_error",
-    "code": "invalid_api_key",
-    "param": null
-  }
-}
-```
-
-### Типы ошибок
-
-| Type | Описание |
-|------|----------|
-| `invalid_request_error` | Неверные параметры запроса |
-| `authentication_error` | Ошибка аутентификации (401/403) |
-| `rate_limit_error` | Превышен rate limit (429) |
-| `service_unavailable_error` | Все модели недоступны (503) |
-| `api_error` | Внутренняя ошибка API (500) |
-
-### Примеры обработки ошибок
-
-#### Python
-
-```python
-import requests
-
-def safe_chat_completion(client, model, provider, messages):
-    try:
-        response = client.chat_completion(
-            model=model,
-            provider=provider,
-            messages=messages
-        )
-        return response['choices'][0]['message']['content']
-    except requests.exceptions.HTTPError as e:
-        status_code = e.response.status_code
-        error_data = e.response.json()
-        
-        if status_code == 401:
-            print("❌ Ошибка аутентификации:", error_data['error']['message'])
-        elif status_code == 429:
-            print("⏳ Rate limit превышен. Попробуйте позже.")
-        elif status_code == 503:
-            print("🔴 Все модели недоступны. Попробуйте позже.")
-        else:
-            print(f"❌ Ошибка {status_code}:", error_data['error']['message'])
-        
-        return None
-    except requests.exceptions.Timeout:
-        print("⏱️ Превышено время ожидания")
-        return None
-    except Exception as e:
-        print(f"❌ Неизвестная ошибка: {str(e)}")
-        return None
-```
-
----
-
-## 🎯 Лучшие практики
-
-### 1. Используйте правильные модели и провайдеры
-
-Проверяйте доступность модели для конкретного провайдера перед запросом:
-
-```python
-# Получить список моделей провайдера
-models = client.get_models(provider="Capi")
-available_models = [m['id'] for m in models['data']]
-
-if "gpt-4o" in available_models:
-    response = client.chat_completion(
-        model="gpt-4o",
-        provider="Capi",
-        messages=[...]
-    )
-```
-
-### 2. Обрабатывайте ошибки gracefully
-
-Всегда используйте try-except блоки и проверяйте HTTP статус коды.
-
-### 3. Используйте разумные timeout'ы
-
-```python
-response = requests.post(url, json=body, timeout=180)  # 3 минуты для сложных запросов
-```
-
-### 4. Кэшируйте список моделей
-
-API эндпойнты `/v1/models` и `/v1/providers` имеют кэширование на 10 минут. Кэшируйте результаты на клиенте:
-
-```python
-import time
-
-class CachedClient:
-    def __init__(self, client):
-        self.client = client
-        self.models_cache = None
-        self.models_cache_time = 0
-    
-    def get_models_cached(self, provider=None):
-        now = time.time()
-        if self.models_cache is None or (now - self.models_cache_time) > 600:
-            self.models_cache = self.client.get_models(provider)
-            self.models_cache_time = now
-        return self.models_cache
-```
-
-### 5. Мониторьте использование токенов
-
-```python
-response = client.chat_completion(...)
-usage = response['usage']
-print(f"Использовано токенов: {usage['total_tokens']}")
-print(f"Prompt: {usage['prompt_tokens']}, Completion: {usage['completion_tokens']}")
-```
-
-### 6. Используйте системные инструкции
-
-```python
-messages = [
-    {"role": "system", "content": "Ты полезный ассистент, отвечающий кратко и по делу."},
-    {"role": "user", "content": "Что такое API?"}
-]
-```
-
----
-
-## 🚦 Rate Limiting
-
-### Лимиты по типам ключей
-
-| Тип ключа | Лимит | Окно |
-|-----------|-------|------|
-| `test` | 30 запросов | 1 час |
-| `full` | 30 запросов | 1 минута |
-| `admin` | Без ограничений | — |
-
-### Заголовки Rate Limit
-
-API возвращает заголовки для мониторинга rate limit:
-
-```http
 X-RateLimit-Limit: 30
 X-RateLimit-Remaining: 25
 X-RateLimit-Reset: 1731654208
 ```
 
-### Обработка 429 ошибки
+### Типы ключей и лимиты
 
-```python
-import time
+| Тип ключа | Запросов в период | Период | Описание |
+|-----------|:----:|:----:|----------|
+| `test` | 30 | 1 час | Тестовый доступ, автоматически истекает через 1 час |
+| `full` | Unlimited | 30 дней | Стандартный доступ, автоматически истекает через 30 дней |
 
-def request_with_retry(client, model, provider, messages, max_retries=3):
-    for attempt in range(max_retries):
-        try:
-            return client.chat_completion(model, provider, messages)
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                retry_after = int(e.response.headers.get('Retry-After', 60))
-                print(f"⏳ Rate limit. Ожидание {retry_after} секунд...")
-                time.sleep(retry_after)
-            else:
-                raise
-    
-    raise Exception("Превышен лимит попыток")
+### Обработка ошибок лимитирования
+
+```powershell
+if ($response.StatusCode -eq 429) {
+    $retryAfter = [int]($response.Headers.'Retry-After' ?? 60)
+    Write-Host "⏱ Rate limit. Ожидание $retryAfter секунд..."
+    Start-Sleep -Seconds $retryAfter
+    # Повторить запрос
+}
 ```
 
 ---
 
-## 🔄 Fallback механизм
+## 🧯 Fallback / Retry
 
-### Как работает автоматический fallback
+### Как это работает
 
-API автоматически переключается между моделями в случае ошибок:
+1. Отправляется запрос к основной модели провайдера
+2. Если ошибка 5xx (500, 502, 503) или пустой ответ — **автоматический retry**
+3. Формируется очередь fallback-моделей:
+   - **Same-provider fallback** — другие модели того же провайдера (быстрее)
+   - **Cross-provider fallback** — модели других провайдеров (если основной недоступен)
+4. **Максимум 5 попыток** (включая основную)
+5. Если все не удалось — возвращается ошибка `503 Service Unavailable`
 
-1. **Первая попытка:** Запрос к указанной модели и провайдеру
-2. **При ошибке:** Автоматический выбор следующей модели из очереди
-3. **Same-Provider приоритет:** Сначала пробуются модели того же провайдера
-4. **Cross-Provider fallback:** Затем модели других провайдеров
-5. **До 10 попыток:** Максимум 10 попыток перед ошибкой 503
-
-### Пример fallback цепочки
+### Пример: Fallback в действии
 
 ```
-Запрос: gpt-4o (Capi)
-  ↓ Ошибка 500
-Retry 1: gemini-2.5-flash (Capi)  ← Same provider
-  ↓ Ошибка 503
-Retry 2: claude-3-opus (Capi)     ← Same provider
-  ↓ Ошибка 503
-Retry 3: gpt-4 (HuggingSpace)     ← Cross-provider
-  ↓ Успех ✅
-Ответ клиенту
+Запрос: model=gpt-4o, provider=Capi
+↓
+Попытка 1: gpt-4o @ Capi → HTTP 500
+↓
+Попытка 2: gemini-2.5-flash @ Capi → HTTP 503
+↓
+Попытка 3: claude-3-opus @ Capi → HTTP 503
+↓
+Попытка 4: gpt-4 @ HuggingSpace → ✅ 200 OK
+↓
+Ответ с указанием fallback в метаданных
 ```
 
-### Информация о fallback в ответе
-
-При успешном fallback API возвращает информацию о финальной модели:
-
-```json
-{
-  "model": "gpt-4",
-  "provider": "HuggingSpace",
-  "choices": [...],
-  "_metadata": {
-    "original_model": "gpt-4o",
-    "original_provider": "Capi",
-    "fallback_attempts": 3
-  }
-}
-```
-
-### Ошибка 503 (все модели exhausted)
-
-Если все fallback модели недоступны:
+### Ошибка при исчерпании всех попыток
 
 ```json
 {
   "error": {
-    "message": "Service temporarily unavailable. All 10 model(s) failed to respond.\n\nTried models:\ngpt-4o (Capi)\ngemini-2.5-flash (Capi)\ngpt-4 (HuggingSpace)\n...",
+    "message": "Service temporarily unavailable. All 5 models failed to respond.",
     "type": "service_unavailable_error",
     "code": "all_models_failed",
+    "param": null,
     "details": {
-      "total_attempts": 10,
-      "tried_models": ["gpt-4o (Capi)", "gemini-2.5-flash (Capi)", ...],
+      "total_attempts": 5,
+      "tried_models": ["gpt-4o@Capi", "gemini-2.5-flash@Capi", "claude-3-opus@Capi", "gpt-4@HuggingSpace"],
       "error_history": [...]
     }
   }
@@ -1065,44 +678,187 @@ Retry 3: gpt-4 (HuggingSpace)     ← Cross-provider
 
 ---
 
-## 📊 Мониторинг и логирование
+## 🧪 Быстрые примеры
 
-### Usage Stats
+### 1) Простой текстовый запрос (PowerShell)
 
-API логирует все запросы в таблицу `usage_stats` для мониторинга:
+```powershell
+$headers = @{
+    "Authorization" = "Bearer rvf_full..."
+    "Content-Type"  = "application/json"
+}
 
-- API key ID и user ID
-- Использованная модель и провайдер
-- Количество токенов (prompt + completion)
-- Время ответа (response time в мс)
-- HTTP status code
-- Сообщения об ошибках
+$body = @{
+    model       = "gpt-4o"
+    provider    = "Capi"
+    messages    = @(
+        @{
+            role    = "user"
+            content = "Что такое REST API? Ответь кратко."
+        }
+    )
+    temperature = 0.7
+    max_tokens  = 300
+} | ConvertTo-Json -Depth 10
 
-### Проверка статистики
+$response = Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/chat/completions" `
+    -Method Post `
+    -Headers $headers `
+    -Body $body
 
-Администраторы могут запросить статистику использования через отдельный эндпойнт (требуется admin ключ).
+Write-Host $response.choices[0].message.content
+```
 
 ---
 
-## 🔗 Полезные ссылки
+### 2) Диалог с контекстом (Python)
 
-- **Base URL:** https://rvlautoai.ru/webhook
-- **Telegram Bot: получить Api-Key** @FreeApiLLMbot
-- **Техническая поддержка:** Через Telegram
+```python
+import requests
+
+BASE_URL = "https://rvlautoai.ru/webhook"
+API_KEY = "rvf_full..."
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json",
+}
+
+messages = [
+    {"role": "system", "content": "Ты краткий и точный ассистент."},
+    {"role": "user", "content": "15 + 27?"},
+    {"role": "assistant", "content": "42"},
+    {"role": "user", "content": "Умножь результат на 3"}
+]
+
+response = requests.post(
+    f"{BASE_URL}/v1/chat/completions",
+    headers=headers,
+    json={
+        "model": "gpt-4o",
+        "provider": "Capi",
+        "messages": messages,
+        "temperature": 0.3,
+        "max_tokens": 50
+    },
+    timeout=180
+)
+
+response.raise_for_status()
+print(response.json()["choices"][0]["message"]["content"])
+```
 
 ---
 
-## 📝 Changelog
+### 3) Веб-поиск (если поддерживается провайдером)
+
+```bash
+curl -X POST "https://rvlautoai.ru/webhook/v1/chat/completions" \
+  -H "Authorization: Bearer rvf_full..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "command-r-plus-08-2024",
+    "provider": "HuggingSpace",
+    "messages": [
+      {"role": "user", "content": "Какие последние новости в области AI?"}
+    ],
+    "websearch": true
+  }'
+```
+
+---
+
+### 4) Обработка ошибок
+
+```python
+import requests
+import time
+
+def safe_chat_completion(model, provider, messages, max_retries=3):
+    """Безопасный запрос с обработкой ошибок и retry"""
+    
+    headers = {
+        "Authorization": "Bearer rvf_full...",
+        "Content-Type": "application/json",
+    }
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                "https://rvlautoai.ru/webhook/v1/chat/completions",
+                headers=headers,
+                json={"model": model, "provider": provider, "messages": messages},
+                timeout=180
+            )
+            
+            if response.status_code == 200:
+                return response.json()["choices"][0]["message"]["content"]
+            
+            elif response.status_code == 401:
+                print("❌ Ошибка аутентификации: неверный API ключ")
+                return None
+            
+            elif response.status_code == 429:
+                retry_after = int(response.headers.get("Retry-After", 60))
+                print(f"⏱ Rate limit. Ожидание {retry_after}с...")
+                time.sleep(retry_after)
+            
+            elif response.status_code == 503:
+                print(f"⚠️ Попытка {attempt+1}/{max_retries}: Service unavailable")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # Экспоненциальная задержка
+            
+            else:
+                print(f"❌ HTTP {response.status_code}: {response.text}")
+                return None
+        
+        except requests.exceptions.Timeout:
+            print(f"⚠️ Timeout. Попытка {attempt+1}/{max_retries}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+        
+        except Exception as e:
+            print(f"❌ Ошибка: {e}")
+            return None
+    
+    print("❌ Все попытки исчерпаны")
+    return None
+
+# Использование
+result = safe_chat_completion(
+    model="gpt-4o",
+    provider="Capi",
+    messages=[{"role": "user", "content": "Привет!"}]
+)
+print(result)
+```
+
+---
+
+## 🧾 Changelog
 
 | Версия | Дата | Изменения |
-|--------|------|-----------|
-| 1.0 | 17.11.2025 | Добавлен эндпойнт POST /v1/chat/completions с полной документацией |
+|--------|------|----------|
+| **1.2** | **28.12.2025** | **🔥 README полностью актуализирован:** Добавлены рабочие примеры извлечения URL из Markdown (PowerShell, Python, JS), описано реальное поведение `PollinationsImage` и `BlackForestLabs_Flux1Dev`, уточнены типы ключей и лимиты, добавлена обработка ошибок |
+| 1.1 | 22.12.2025 | Расширена документация GET endpoints |
+| 1.0 | 17.11.2025 | Добавлен POST `/v1/chat/completions` с документацией |
 | 1.0 | 17.11.2025 | Добавлена документация по аутентификации и rate limiting |
 | 1.0 | 17.11.2025 | Документирован автоматический fallback механизм |
 | 1.0 | 15.11.2025 | Первая версия API документации (GET эндпойнты) |
 
 ---
 
-**Дата обновления:** 17 ноября 2025  
+## 📝 Дополнительная информация
+
+**Дата обновления:** 28 декабря 2025  
 **Автор:** RVFreeLLM Team  
-**Статус:** ✅ Production Ready
+**Статус:** ✅ Production Ready  
+**Версия API:** 1.2  
+
+---
+
+## 🤝 Поддержка
+
+- **Telegram:** `@FreeApiLLMbot`
+- **GitHub Issues:** https://github.com/Xrey995/Unlimited-LLMs/issues
+- **Email:** support@rvlautoai.ru (при наличии)
