@@ -72,6 +72,11 @@ X-API-Version: 1.1
 | `video` | Видео генерация | sora, cogvideo, runway |
 
 ---
+Используйте следующую команду в PowerShell для получения свежего списка:
+```powershell
+Invoke-RestMethod -Uri "https://rvlautoai.ru/webhook/v1/models/list" -Method Get | Select-Object -ExpandProperty text
+```
+---
 
 ## 🔐 Аутентификация
 
